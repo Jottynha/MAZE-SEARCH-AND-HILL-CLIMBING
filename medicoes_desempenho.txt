@@ -1,0 +1,9 @@
+--- RESULTADOS DAS MEDIÇÕES DE DESEMPENHO (TRABALHO 1) ---
+Custo Mínimo Ótimo (Referência): 5.00
+Algoritmo           | Tempo (s) | Max Memória (elementos) | Nós Expandidos | Custo Solução | Completude | Optimalidade
+----------------------------------------------------------------------------------------------------------------------
+BFS (Não Informada) | 0.000255  | 21                      | 18             | 8.00          | SIM        | NÃO         
+DFS (Não Informada) | 0.000094  | 14                      | 9              | 8.00          | SIM        | NÃO         
+Gulosa (Manhattan)  | 0.000131  | 14                      | 9              | 8.00          | SIM        | NÃO         
+A* (Manhattan)      | 0.000188  | 21                      | 16             | 8.00          | SIM        | NÃO         
+----------------------------------------------------------------------------------------------------------------------
