@@ -1,9 +1,14 @@
 # main.py
 import time
+import os
 from typing import List, Tuple, Callable, Any, Dict
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
 from src.maze import Maze
 from src.heuristics import h_manhattan
-from src.search import bfs, dfs, greedy_search, a_star_search
+from src.search import bfs, dfs, greedy_search, a_star_search, set_seed
 
 SearchResult = Tuple[List[str], float, int, int, bool]
 
@@ -39,10 +44,12 @@ def run_test(name: str, search_func: Callable[[Maze], SearchResult], maze: Maze)
             "Custo Solução": custo_str,
             "Completude": "SIM" if is_complete else "NÃO",
             "Optimalidade": "SIM" if is_optimal else "NÃO",
-            # campos extra para o arquivo detalhado
+            # campos extra para o arquivo detalhado / análise
             "Caminho": caminho_str,
             "_raw_cost": cost if solution_found else None,
-            "_found": solution_found
+            "_found": solution_found,
+            "_time": exec_time,               # campo numérico para plotagem
+            "_path_length": len(path) if path else None
         }
     except Exception as e:
         return {
@@ -105,10 +112,100 @@ def print_results(results: List[Dict[str, Any]], output_file: str = "medicoes_de
     except Exception as e:
         print(f"Erro ao salvar resultados em {output_file}: {e}")
 
+# --- Funções de plotagem das métricas (Barras preenchidas com pontos sobrepostos) ---
+
+def _ensure_out_dir(out_dir: str):
+    os.makedirs(out_dir, exist_ok=True)
+
+def plot_metric_bars(df: pd.DataFrame, metric_key: str, display_name: str, out_dir: str = "bench_results") -> str:
+    """
+    Gera um gráfico de barras preenchidas comparando a média da 'metric_key' entre os métodos,
+    com barras de erro (desvio padrão) e pontos individuais sobrepostos (jitter).
+    - metric_key: coluna numérica no DataFrame (ex.: '_time', 'Max Memória (elementos)', '_raw_cost', '_path_length')
+    - display_name: rótulo para o eixo y / título
+    """
+    _ensure_out_dir(out_dir)
+    # converte para numérico forçando NaN em valores inválidos
+    series_df = df[['Algoritmo', metric_key]].copy()
+    series_df[metric_key] = pd.to_numeric(series_df[metric_key], errors='coerce')
+    # filtrar apenas valores válidos
+    series_df = series_df.dropna(subset=[metric_key])
+
+    if series_df.empty:
+        print(f"Aviso: Não há dados válidos para a métrica '{display_name}'. Nenhum gráfico será gerado.")
+        return ""
+
+    methods = sorted(series_df['Algoritmo'].unique())
+    means = []
+    stds = []
+    counts = []
+    values_per_method = []
+    for m in methods:
+        vals = series_df[series_df['Algoritmo'] == m][metric_key].values
+        values_per_method.append(vals)
+        means.append(np.mean(vals) if len(vals) > 0 else 0.0)
+        stds.append(np.std(vals, ddof=0) if len(vals) > 0 else 0.0)
+        counts.append(len(vals))
+
+    x = np.arange(len(methods))
+    width = 0.6
+
+    plt.figure(figsize=(9, 6))
+    # barras preenchidas (média) com barra de erro = std
+    bars = plt.bar(x, means, width=width, yerr=stds, capsize=6, alpha=0.9)
+
+    # adicionar rótulos de valor médio acima das barras
+    for xi, mval in zip(x, means):
+        plt.text(xi, mval, f"{mval:.3g}", ha='center', va='bottom', fontsize=9)
+
+    # sobrepor pontos individuais (jitter horizontal para visualização)
+    rng = np.random.default_rng(42)  # reprodutível
+    for idx, vals in enumerate(values_per_method):
+        if len(vals) == 0:
+            continue
+        jitter = rng.normal(loc=0.0, scale=0.05, size=len(vals))
+        xs = np.full(len(vals), x[idx]) + jitter
+        plt.scatter(xs, vals, alpha=0.7, edgecolors='k', linewidths=0.4, s=40)
+
+    plt.xticks(x, methods, rotation=25)
+    plt.title(f"Comparação de '{display_name}' entre métodos")
+    plt.ylabel(display_name)
+    plt.xlabel("Método de Busca")
+    plt.tight_layout()
+
+    filename = os.path.join(out_dir, f"compare_bar_{metric_key.strip('_')}.png")
+    plt.savefig(filename)
+    plt.close()
+    print(f"Gráfico salvo: {filename}")
+    return filename
+
+def plot_all_metrics(results: List[Dict[str, Any]], out_dir: str = "bench_results") -> Dict[str, str]:
+    """
+    Converte results para DataFrame e gera gráficos para as métricas principais (barras preenchidas).
+    Retorna um dicionário {metric_key: filepath}.
+    """
+    df = pd.DataFrame(results)
+    files = {}
+    metrics = [
+        ('_time', 'Tempo (s)'),
+        ('Max Memória (elementos)', 'Max Memória (elementos)'),
+        ('Nós Expandidos', 'Nós Expandidos'),
+        ('_raw_cost', 'Custo (bruto)'),
+        ('_path_length', 'Comprimento do Caminho')
+    ]
+    for key, label in metrics:
+        fpath = plot_metric_bars(df, key, label, out_dir=out_dir)
+        if fpath:
+            files[key] = fpath
+    return files
+
 def main():
+    # FIXA A SEMENTE PARA REPRODUTIBILIDADE (chame antes de gerar/carregar mazes aleatórios)
+    set_seed(42)
+
     lab_file = 'data/labirinto.txt'
     try:
-        # Maze.from_file agora devolve (maze, start_pos?, goal_pos?)
+        # Maze.from_file agora devolve (maze, start_pos?, goal_pos?) conforme seu main original
         maze, start_pos, goal_pos = Maze.from_file(lab_file)
     except Exception as e:
         print(f"ERRO CRÍTICO: Não foi possível carregar o labirinto. {e}")
@@ -133,8 +230,19 @@ def main():
         print(f"\nRodando teste: {name}...")
         result = run_test(name, func, maze)
         all_results.append(result)
+
     if all_results:
         print_results(all_results)
+
+        # Gerar gráficos comparativos das métricas
+        print("\nGerando gráficos comparativos das métricas...")
+        files = plot_all_metrics(all_results, out_dir="bench_results")
+        if files:
+            print("Gráficos gerados:")
+            for k, v in files.items():
+                print(f"  - {k}: {v}")
+        else:
+            print("Nenhum gráfico gerado (dados insuficientes).")
 
 if __name__ == "__main__":
     main()

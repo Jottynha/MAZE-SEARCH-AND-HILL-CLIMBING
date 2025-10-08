@@ -2,10 +2,10 @@
 Custo Mínimo Ótimo (Referência): 5.00
 Algoritmo           | Tempo (s) | Max Memória (elementos) | Nós Expandidos | Custo Solução | Completude | Optimalidade | Caminho                                       
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-BFS (Não Informada) | 0.000336  | 25                      | 22             | 10.00         | SIM        | NÃO          | L -> N -> N -> L -> L -> N -> O -> N -> L -> L
-DFS (Não Informada) | 0.000200  | 25                      | 18             | 10.00         | SIM        | NÃO          | L -> N -> N -> L -> L -> N -> O -> N -> L -> L
-Gulosa (Manhattan)  | 0.000204  | 21                      | 14             | 10.00         | SIM        | NÃO          | L -> N -> N -> L -> L -> N -> O -> N -> L -> L
-A* (Manhattan)      | 0.000222  | 23                      | 19             | 10.00         | SIM        | NÃO          | L -> N -> N -> L -> L -> N -> O -> N -> L -> L
+BFS (Não Informada) | 0.000261  | 25                      | 22             | 10.00         | SIM        | NÃO          | L -> N -> N -> L -> L -> N -> O -> N -> L -> L
+DFS (Não Informada) | 0.000195  | 25                      | 18             | 10.00         | SIM        | NÃO          | L -> N -> N -> L -> L -> N -> O -> N -> L -> L
+Gulosa (Manhattan)  | 0.000201  | 21                      | 14             | 10.00         | SIM        | NÃO          | L -> N -> N -> L -> L -> N -> O -> N -> L -> L
+A* (Manhattan)      | 0.000232  | 23                      | 19             | 10.00         | SIM        | NÃO          | L -> N -> N -> L -> L -> N -> O -> N -> L -> L
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 --- CAMINHOS E CUSTOS ENCONTRADOS (DETALHADO) ---

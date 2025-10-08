@@ -1,9 +1,23 @@
 # src/search.py
 import collections  # deque
 import heapq
-from typing import List, Tuple, Callable, Set, Deque, Dict, Optional
+from typing import List, Tuple, Callable, Set, Deque, Dict, Optional, Any
 from .maze import Maze, Pos
+import random
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
 
+def set_seed(seed: int = 42) -> None:
+    """
+    Fixar semente pseudo-aleatória para reprodutibilidade.
+    Chame set_seed(42) (ou outro valor) ANTES de gerar mazes ou executar os testes.
+    Isso define random.seed e (se disponível) numpy.random.seed.
+    """
+    random.seed(seed)
+    if np is not None:
+        np.random.seed(seed)
 # ===
 # Estruturas Auxiliares
 # ===
