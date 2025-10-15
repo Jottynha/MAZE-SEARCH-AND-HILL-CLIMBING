@@ -10,7 +10,7 @@ from src.maze import Maze
 from src.heuristics import h_manhattan
 from src.search import bfs, dfs, greedy_search, a_star_search, set_seed
 
-SearchResult = Tuple[List[str], float, int, int, bool]
+SearchResult = Tuple[List[Tuple[Any, Any]], float, int, int, bool]
 
 TESTS = [
     ("BFS (Não Informada)", bfs, None),
@@ -32,8 +32,8 @@ def run_test(name: str, search_func: Callable[[Maze], SearchResult], maze: Maze)
         is_complete = solution_found
         is_optimal = solution_found and (abs(cost - COSTO_MINIMO_OTIMO) < 1e-6)
 
-        # Formata caminho como string simples para saída (ações separadas por " -> ")
-        caminho_str = " -> ".join(path) if path else "N/A"
+        # Formata caminho como string simples para saída (transições de posição)
+        caminho_str = " -> ".join([f"{p[0]}-{p[1]}" for p in path]) if path else "N/A"
         custo_str = f"{cost:.2f}" if solution_found else "N/A"
 
         return {
@@ -46,22 +46,26 @@ def run_test(name: str, search_func: Callable[[Maze], SearchResult], maze: Maze)
             "Optimalidade": "SIM" if is_optimal else "NÃO",
             # campos extra para o arquivo detalhado / análise
             "Caminho": caminho_str,
-            "_raw_cost": cost if solution_found else None,
+            "_raw_cost": cost if solution_found else float('nan'),
             "_found": solution_found,
             "_time": exec_time,               # campo numérico para plotagem
-            "_path_length": len(path) if path else None
+            "_path_length": len(path) if path else 0
         }
     except Exception as e:
         return {
             "Algoritmo": name,
             "Tempo (s)": "ERRO",
-            "Max Memória (elementos)": "ERRO",
-            "Nós Expandidos": "ERRO",
+            "Max Memória (elementos)": float('nan'),
+            "Nós Expandidos": float('nan'),
             "Custo Solução": "ERRO",
             "Completude": "ERRO",
             "Optimalidade": "ERRO",
             "Caminho": "ERRO",
-            "_error": str(e)
+            "_error": str(e),
+            # Adiciona campos numéricos como NaN para evitar erros de plotagem
+            "_raw_cost": float('nan'),
+            "_time": float('nan'),
+            "_path_length": float('nan'),
         }
 
 def print_results(results: List[Dict[str, Any]], output_file: str = "medicoes_desempenho.txt"):
