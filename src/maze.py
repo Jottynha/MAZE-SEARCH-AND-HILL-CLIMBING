@@ -1,17 +1,15 @@
-#!/usr/bin/env python3
 """
-maze_from_positions.py
-
-Lê ficheiro com posições e bitstrings (N,S,L,O) e cria uma Maze onde
-cada posição tem a sua lista de adjacência. Executa BFS do Start ao Goal.
-
-Formato aceito por linha:
-  [r,c]:1001   (ou)  r,c:1001
+maze.py
+-> Lê ficheiro com posições e bitstrings (N,S,L,O)
+-> Cria um objeto da Classe Maze onde cada posição tem a sua lista de adjacência. 
+-> Executa BFS do Start ao Goal.
+Formato adotado que será aceito por linha:
+-> [r,c]:1001   (ou)  
+-> r,c:1001
 Comentários com '#' são ignorados; se houver "# A" no final a posição ganha rótulo 'A'.
 Linhas especiais:
-  Start:[r,c]
-  Goal:[r,c]
-
+-> Start:[r,c] (Estado inicial do agente)
+-> Goal:[r,c] (Estado meta do agente)
 Por padrão lê 'data/labirinto.txt' se nenhum ficheiro for passado como argumento.
 """
 
@@ -22,11 +20,10 @@ import sys
 import argparse
 
 Pos = Tuple[int,int]
-ORDER = ['N','S','L','O']  # ordem dos bits
+ORDER = ['N','S','L','O']  # ordem dos bits da lisat de adjacência
 
 class Maze:
     DELTA = {'N':(-1,0),'S':(1,0),'L':(0,1),'O':(0,-1)}
-
     def __init__(self, adj_map: Dict[Pos,str], pos_label: Optional[Dict[Pos,str]] = None):
         """
         adj_map: mapa Pos -> bits (string len==4 com '0'/'1' na ordem [N,S,L,O])
@@ -34,7 +31,7 @@ class Maze:
         """
         self.adj_map = adj_map
         self.pos_label = pos_label or {}
-        # infere limites (não estritamente necessários, mas útil)
+        # infere limites (não necessário mas útil)
         rows = [p[0] for p in adj_map.keys()] if adj_map else [0]
         cols = [p[1] for p in adj_map.keys()] if adj_map else [0]
         self.H = max(rows)+1
@@ -43,7 +40,7 @@ class Maze:
     @classmethod
     def from_file(cls, path: str) -> Tuple['Maze', Optional[Pos], Optional[Pos]]:
         """
-        Lê o ficheiro e devolve (MazeAdj, start_pos?, goal_pos?)
+        Lê o arquivo e devolve (MazeAdj, start_pos, goal_pos)
         """
         adj_map: Dict[Pos,str] = {}
         pos_label: Dict[Pos,str] = {}
@@ -100,7 +97,10 @@ class Maze:
         return p in self.adj_map
 
     def actions(self, p: Pos) -> List[str]:
-        """Retorna ações possíveis (N,S,L,O) a partir de p avaliando bits e existência do vizinho."""
+        """
+        Retorna ações possíveis (N,S,L,O) a partir de p, avaliando bits da lista 
+        e existência do vizinho.
+        """
         if p not in self.adj_map:
             return []
         bits = self.adj_map[p]
@@ -162,6 +162,7 @@ class Maze:
                     q.append(nxt)
         return None
 
+# Main para testes
 def main():
     parser = argparse.ArgumentParser(description="Lê adjacências por posição (bits) e faz BFS.")
     parser.add_argument('file', nargs='?', default='data/labirinto.txt',
@@ -175,7 +176,7 @@ def main():
     except FileNotFoundError as e:
         print(e)
         sys.exit(1)
-    # parse overrides se dados em --start/--goal
+    # parse para overrides se dados em --start/--goal
     def parse_rc(s: Optional[str]) -> Optional[Pos]:
         if not s: return None
         s = s.strip()

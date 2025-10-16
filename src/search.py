@@ -1,29 +1,28 @@
-# src/search.py
-import collections  # deque
-import heapq
-from typing import List, Tuple, Callable, Set, Deque, Dict, Optional, Any
-from .maze import Maze, Pos
-import random
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import os
+import collections  # Utilizado para deque, usado em BFS e DFS
+import heapq # Utilizado para filas de prioridade
+from typing import List, Tuple, Callable, Set, Deque, Dict, Optional # Utilizado para tipagem como Lista, Tupla...
+from .maze import Maze, Pos # Pos é uma tupla (linha, coluna) e Maze é a classe do labirinto
+import random # Utilizado para setar semente
+import numpy as np # Utilizado para setar semente (se necessário)
 
 def set_seed(seed: int = 42) -> None:
     """
-    Fixar semente pseudo-aleatória para reprodutibilidade.
-    Chame set_seed(42) (ou outro valor) ANTES de gerar mazes ou executar os testes.
-    Isso define random.seed e (se disponível) numpy.random.seed.
+    -> Fixar semente pseudo-aleatória para reprodutibilidade.
+    -> Chame set_seed(42) (ou outro valor) ANTES de gerar mazes ou executar os testes.
+    -> Isso define random.seed e (se disponível) numpy.random.seed.
     """
     random.seed(seed)
     if np is not None:
         np.random.seed(seed)
+
 # ===
 # Estruturas Auxiliares
 # ===
 
 class Node:
-    """Representa um nó na árvore de busca com as métricas necessárias."""
+    """
+    -> Representa um nó na árvore de busca com as métricas necessárias.
+    """
     def __init__(self, state: Pos, parent: 'Node' = None, action: str = None,
                  path_cost: float = 0.0, h_score: float = 0.0):
         self.state = state
@@ -32,16 +31,16 @@ class Node:
         self.path_cost = path_cost  # g(n)
         self.h_score = h_score      # h(n)
         self.f_score = path_cost + h_score  # f(n) = g + h
-
     def __lt__(self, other: 'Node'):
-        # utilizado pela heapq; compara por f_score
-        return self.f_score < other.f_score
+        return self.f_score < other.f_score # utilizado pela heapq; compara por f_score
 
-# Tipo do retorno: (path_transitions, cost, max_memory, nodes_expanded, solution_found)
+# Tipo do retorno: (transições de caminho, custo, memória_máxima, nós_expandidos, solução_encontrada)
 SearchResult = Tuple[List[Tuple[Pos, Pos]], float, int, int, bool]
 
 def reconstruct_path(node: Node) -> List[Tuple[Pos, Pos]]:
-    """Reconstrói o caminho como uma lista de transições de estado (de, para)."""
+    """
+    -> Reconstrói o caminho como uma lista de transições de estado (de, para).
+    """
     path_transitions: List[Tuple[Pos, Pos]] = []
     current = node
     while current.parent is not None:
@@ -50,12 +49,12 @@ def reconstruct_path(node: Node) -> List[Tuple[Pos, Pos]]:
     path_transitions.reverse()
     return path_transitions
 
-# --- Helpers para compatibilidade com o Maze atual ---
 def _get_start_goal(maze: Maze) -> Tuple[Optional[Pos], Optional[Pos]]:
-    """Tenta obter start e goal do objeto maze (várias convenções)."""
+    """
+    -> Tenta obter start e goal do objeto maze (várias convenções).
+    """
     start = getattr(maze, 'start', None)
     goal = getattr(maze, 'goal', None)
-    # nomes alternativos possíveis
     if start is None:
         start = getattr(maze, 'start_pos', None)
     if goal is None:
@@ -64,22 +63,22 @@ def _get_start_goal(maze: Maze) -> Tuple[Optional[Pos], Optional[Pos]]:
 
 def _ensure_goal_test_and_step_cost(maze: Maze):
     """
-    Garante que maze tem os 'métodos' esperados por search.py:
-      - maze.goal_test(pos) -> bool
-      - maze.step_cost(s, a, n) -> float
-    Se não existir, cria versões padrão:
-      - goal_test: p == maze.goal
-      - step_cost: custo unitário 1.0
+    -> Garante que maze tem os 'métodos' esperados por search.py:
+      -> maze.goal_test(pos) -> bool
+      -> maze.step_cost(s, a, n) -> float
+    -> Se não existir, cria versões padrão:
+      -> goal_test: p == maze.goal
+      -> step_cost: custo unitário 1.0
     """
     if not hasattr(maze, 'goal_test'):
         def goal_test(p: Pos) -> bool:
             g = getattr(maze, 'goal', None)
             return g is not None and p == g
-        maze.goal_test = goal_test  # type: ignore
+        maze.goal_test = goal_test  
     if not hasattr(maze, 'step_cost'):
         def step_cost(s: Pos, a: str, n: Pos) -> float:
             return 1.0
-        maze.step_cost = step_cost  # type: ignore
+        maze.step_cost = step_cost  
 
 # ===
 # Algoritmos de Busca Não Informada (BFS e DFS)
@@ -102,11 +101,9 @@ def bfs(maze: Maze) -> SearchResult:
     while frontier:
         current_node = frontier.popleft()
         nodes_expanded += 1
-        
         if maze.goal_test(current_node.state):
-            # Retorna o caminho de exploração completo em vez do caminho da solução
+            # Retorna o caminho de exploração completo (igual para todos métodos de busca)
             return (exploration_path, current_node.path_cost, max_memory, nodes_expanded, True)
-
         for action in maze.actions(current_node.state):
             next_state = maze.result(current_node.state, action)
             if next_state not in explored:
@@ -135,12 +132,9 @@ def dfs(maze: Maze) -> SearchResult:
     while frontier:
         current_node = frontier.pop()
         nodes_expanded += 1
-
         if maze.goal_test(current_node.state):
-            # Retorna o caminho de exploração completo em vez do caminho da solução
             return (exploration_path, current_node.path_cost, max_memory, nodes_expanded, True)
-
-        # expand in reversed order to keep consistent LIFO behaviour
+        # Expansão em ordem reversa para manter comportamento LIFO consistente
         for action in reversed(maze.actions(current_node.state)):
             next_state = maze.result(current_node.state, action)
             if next_state not in explored:
@@ -178,11 +172,8 @@ def greedy_search(maze: Maze, heuristic_fn: HeuristicFn) -> SearchResult:
     while frontier:
         _, _, current_node = heapq.heappop(frontier)
         nodes_expanded += 1
-
-        if maze.goal_test(current_node.state):
-            # Retorna o caminho de exploração completo em vez do caminho da solução
+        if maze.goal_test(current_node.state): 
             return (exploration_path, current_node.path_cost, max_memory, nodes_expanded, True)
-
         for action in maze.actions(current_node.state):
             next_state = maze.result(current_node.state, action)
             cost = maze.step_cost(current_node.state, action, next_state)
@@ -199,12 +190,11 @@ def greedy_search(maze: Maze, heuristic_fn: HeuristicFn) -> SearchResult:
 
 
 def a_star_search(maze: Maze, heuristic_fn: HeuristicFn) -> SearchResult:
-    """A* (f = g + h)."""
+    """Busca A* (f = g + h)."""
     start, goal = _get_start_goal(maze)
     if start is None or goal is None:
         raise ValueError("Maze precisa ter 'start' e 'goal' definidos antes de executar a_star_search().")
     _ensure_goal_test_and_step_cost(maze)
-
     h_start = heuristic_fn(start, goal)
     start_node = Node(start, path_cost=0.0, h_score=h_start)
     start_node.f_score = start_node.path_cost + start_node.h_score
@@ -214,19 +204,13 @@ def a_star_search(maze: Maze, heuristic_fn: HeuristicFn) -> SearchResult:
     nodes_expanded = 0
     max_memory = 1
     exploration_path: List[Tuple[Pos, Pos]] = []
-
     while frontier:
         _, _, current_node = heapq.heappop(frontier)
-
         if current_node.path_cost > g_scores.get(current_node.state, float('inf')):
             continue
-        
         nodes_expanded += 1
-
         if maze.goal_test(current_node.state):
-            # Retorna o caminho de exploração completo em vez do caminho da solução
             return (exploration_path, current_node.path_cost, max_memory, nodes_expanded, True)
-        
         for action in maze.actions(current_node.state):
             next_state = maze.result(current_node.state, action)
             cost = maze.step_cost(current_node.state, action, next_state)
