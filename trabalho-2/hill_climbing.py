@@ -33,13 +33,17 @@ class HillClimber:
         self.random_tiebreak = random_tiebreak
 
     def neighbors(self, board: Board):
+        """
+        Gera vizinhos através de swap de colunas (permutações).
+        Isso garante que cada configuração seja uma permutação válida,
+        evitando conflitos de linha.
+        """
         n = self.n
-        for col in range(n):
-            for row in range(n):
-                if row != board[col]:
-                    nb = board.copy()
-                    nb[col] = row
-                    yield nb, (col, row)
+        for i in range(n - 1):
+            for j in range(i + 1, n):
+                nb = board.copy()
+                nb[i], nb[j] = nb[j], nb[i]
+                yield nb, (i, j)
 
     def best_neighbors(self, board: Board):
         best_val = None
@@ -175,6 +179,44 @@ def histogram_metric(metrics: List[float], bins: int, xlabel: str, title: str, s
     plt.close()
 
 
+def save_summary_csv(filename: str, results: List[Dict[str, Any]]):
+    """
+    Gera um CSV com estatísticas agregadas dos resultados:
+    taxa de sucesso, médias, medianas e desvios-padrão.
+    """
+    if not results:
+        return
+    
+    times = [r['time_s'] for r in results]
+    iters = [r['total_iterations'] for r in results]
+    restarts = [r['restarts_used'] for r in results]
+    final_conf = [r['final_conflicts'] for r in results]
+    success_rate = sum(1 for r in results if r['success']) / len(results)
+    
+    summary = {
+        'total_runs': len(results),
+        'success_rate': success_rate,
+        'mean_time': statistics.mean(times),
+        'median_time': statistics.median(times),
+        'std_time': statistics.pstdev(times) if len(times) > 1 else 0,
+        'mean_iters': statistics.mean(iters),
+        'median_iters': statistics.median(iters),
+        'std_iters': statistics.pstdev(iters) if len(iters) > 1 else 0,
+        'mean_restarts': statistics.mean(restarts),
+        'median_restarts': statistics.median(restarts),
+        'std_restarts': statistics.pstdev(restarts) if len(restarts) > 1 else 0,
+        'mean_final_conflicts': statistics.mean(final_conf),
+        'median_final_conflicts': statistics.median(final_conf),
+        'std_final_conflicts': statistics.pstdev(final_conf) if len(final_conf) > 1 else 0,
+    }
+    
+    with open(filename, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['metric', 'value'])
+        for k, v in summary.items():
+            writer.writerow([k, v])
+
+
 def plot_board(board, title="Tabuleiro 8 Rainhas", save_as: str = None, show: bool = False):
     """
     Visualiza o tabuleiro das 8 rainhas com matplotlib.
@@ -221,23 +263,49 @@ def plot_board(board, title="Tabuleiro 8 Rainhas", save_as: str = None, show: bo
 # ---------- experiments and CLI ----------
 
 def run_trials(climber: HillClimber, restarts: int, trials: int, seed: Optional[int] = None):
-    runner = RandomRestartRunner(climber=climber, max_restarts=restarts, seed=seed)
+    """
+    Executa múltiplas trials com seeds individuais para reprodutibilidade.
+    Cada trial recebe uma seed única (base_seed + trial_index).
+    """
     results = []
-    if seed is not None:
-        random.seed(seed)
-        np.random.seed(seed)
+    base_seed = seed if seed is not None else int(time.time()) & 0xffffffff
+    
     for t in range(trials):
+        seed_for_run = base_seed + t
+        random.seed(seed_for_run)
+        np.random.seed(seed_for_run)
+        
+        runner = RandomRestartRunner(climber=climber, max_restarts=restarts, seed=seed_for_run)
         r = runner.run_once()
+        
+        # Adiciona metadados de reprodutibilidade
+        r['run_id'] = t + 1
+        r['seed_used'] = seed_for_run
+        
         results.append(r)
+    
     return results
 
 
 def save_results_csv(filename: str, results: List[Dict[str, Any]]):
+    """
+    Salva resultados detalhados no CSV, incluindo metadados de reprodutibilidade
+    e o estado final (solution) para análise posterior.
+    """
     with open(filename, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=['success','restarts_used','total_iterations','time_s','conflicts','start_conflicts','final_conflicts','used_sideways'])
+        fieldnames = [
+            'run_id', 'seed_used', 'success', 'restarts_used', 
+            'total_iterations', 'time_s', 'final_conflicts', 
+            'used_sideways', 'solution'
+        ]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for r in results:
-            writer.writerow({k: r.get(k) for k in writer.fieldnames})
+            row = {k: r.get(k) for k in fieldnames}
+            # Converte a solução para string legível
+            if 'solution' in r and r['solution'] is not None:
+                row['solution'] = repr(r['solution'])
+            writer.writerow(row)
 
 
 def main():
@@ -271,6 +339,7 @@ def main():
             print(f"Running trials for restarts={r_val} ...")
             results = run_trials(climber, restarts=r_val, trials=args.trials, seed=args.seed)
             save_results_csv(os.path.join(csv_dir, f'results_restarts_{r_val}.csv'), results)
+            save_summary_csv(os.path.join(csv_dir, f'summary_restarts_{r_val}.csv'), results)
 
             for t_idx, res in enumerate(results):
                 if res['success']:
@@ -299,6 +368,7 @@ def main():
         print(f'Running {args.trials} trials with restarts={args.restarts} ...')
         results = run_trials(climber, restarts=args.restarts, trials=args.trials, seed=args.seed)
         save_results_csv(os.path.join(csv_dir, 'results_summary.csv'), results)
+        save_summary_csv(os.path.join(csv_dir, 'statistics_summary.csv'), results)
 
         for t_idx, res in enumerate(results):
             if res['success']:

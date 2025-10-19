@@ -1,0 +1,15 @@
+metric,value
+total_runs,5
+success_rate,0.0
+mean_time,0.46413015739817637
+median_time,0.45535229600500315
+std_time,0.018156379581617196
+mean_iters,1136.2
+median_iters,1125
+std_iters,21.967248348393568
+mean_restarts,20
+median_restarts,20
+std_restarts,0.0
+mean_final_conflicts,1.4
+median_final_conflicts,1
+std_final_conflicts,0.4898979485566356
